@@ -1,53 +1,40 @@
-% This function is part of the toolbox:
-%       gwSPM: Graph-based, Wavelet-based Statistical Parametric Mapping
-%       (v1.00)
-%
-% 	Author: Hamid Behjat
-% 
-%   Biomedical Signal Processing Group, 
-%   Dept. of Biomedical Engineering,
-%   Lund University, Sweden
-% 
-%   June 2016
-%
-function check = gwspm_check_dirs(option)
-
-check = 1;
-if option.saveAtoms || option.loadAtoms
-    dummy = pwd;
+function chk = gwspm_check_dirs(opts)
+chk = 1;
+if opts.saveAtoms || opts.loadAtoms
+    cwd = pwd;
     try
-        cd(option.atomsDir)
+        cd(opts.atomsDir)
     catch
-        if option.loadAtoms
-            check = 0;
+        if opts.loadAtoms
+            chk = 0;
             return
         end
-        if option.saveAtoms
-            mkdir(option.atomsDir)
+        if opts.saveAtoms
+            mkdir(opts.atomsDir)
         end
     end
     try
-        cd(option.cbr_atomsDir)
+        cd(opts.cbr_atomsDir)
     catch
-        if option.loadAtoms
-            check = 0;
+        if opts.loadAtoms
+            chk = 0;
             return
         end
-        if option.saveAtoms
-            mkdir(option.cbr_atomsDir)
+        if opts.saveAtoms
+            mkdir(opts.cbr_atomsDir)
         end
     end
     try
-        cd(option.cbl_atomsDir)
+        cd(opts.cbl_atomsDir)
     catch
-        if option.loadAtoms
-            check = 0;
+        if opts.loadAtoms
+            chk = 0;
             return
         end
-        if option.saveAtoms
-            mkdir(option.cbl_atomsDir)
+        if opts.saveAtoms
+            mkdir(opts.cbl_atomsDir)
         end
 
     end
-    cd(dummy)
+    cd(cwd);
 end
