@@ -1,29 +1,20 @@
-% This function is part of the toolbox:
-%       gwSPM: Graph-based, Wavelet-based Statistical Parametric Mapping
-%       (v1.00)
-%
-% 	Author: Hamid Behjat
-% 
-%   Biomedical Signal Processing Group, 
-%   Dept. of Biomedical Engineering,
-%   Lund University, Sweden
-% 
-%   June 2016
-%
-function [mask_adj, indAdj]=gwspm_adjust_mask(mask,numClean,connClean,name) 
-% numClean : max size of isolated componnets to be removed
-% connClean: connectivity to use for clean operation
+function [mask_out,ind_out]=gwspm_adjust_mask(mask,p,conn,name) 
+% Remove isolated componets of size p voxels or less from input mask based
+% on neighborhood connectivity as specified by conn.
 
-indG=find(mask);
-maskBW=zeros(size(mask));
-maskBW(indG)=1;
+ind_in = find(mask);
 
-% Remove isolated componets of size 'numClean' voxels or less
-GMBW2=bwareaopen(maskBW,numClean,connClean);
+v0 = zeros(size(mask));
 
-% Change back to grayscale
-indAdj=find(GMBW2);
-mask_adj=zeros(size(mask));
-mask_adj(indAdj)=mask(indAdj);
-sprintf('%d voxels were removed for adjusting the %s mask.',numel(indG)-numel(indAdj),name)
+mask_bw = v0;
+mask_bw(ind_in) = 1;
+
+mask_bw2 = bwareaopen(mask_bw,p,conn);
+ind_out = find(mask_bw2);
+
+mask_out = v0;
+mask_out(ind_out) = mask(ind_out);
+
+sprintf('%d voxels removed for cleaning %s mask.',...
+    length(ind_in)-length(ind_out),name)
 
