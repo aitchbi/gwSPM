@@ -1,172 +1,212 @@
-% This function is part of the toolbox:
-%       gwSPM: Graph-based, Wavelet-based Statistical Parametric Mapping
-%       (v1.00)
-%
-% 	Author: Hamid Behjat
-% 
-%   Biomedical Signal Processing Group, 
-%   Dept. of Biomedical Engineering,
-%   Lund University, Sweden
-% 
-%   June 2016
-%
 function [f,x] = gwspm_view_design(g,arange,varargin)
-% This function is an extended version of the function: 
-% sgwt_filter_design.m 
-% from the the SGWT toolbox.
+% An extended version of sgwt_filter_design.m from the SGWT toolbox.
 
-control_params={'showLegend','yes','Graph',0,'eigsToInterp',[],...
-    'subSampleWarping',0,'warping','none',... 
-    'plotLineWidth',1,'lambda',[],'guiHandle',[],'chebyOrder',[],...
-    'onlyChebyApprox','no'};
-argselectAssign(control_params);
-argselectCheck(control_params,varargin);
-argselectAssign(varargin);
+p = inputParser;
+addParameter(p,'showLegend','yes');
+addParameter(p,'Graph',0);
+addParameter(p,'eigsToInterp',[]);
+addParameter(p,'subSampleWarping',0);
+addParameter(p,'warping','none');
+addParameter(p,'plotLineWidth',1);
+addParameter(p,'lambda',[]);
+addParameter(p,'guiHandle',[]);
+addParameter(p,'chebyOrder',[]);
+addParameter(p,'onlyChebyApprox','no');
+parse(p,varargin{:});
+opts = p.Results;
+
+lw = opts.plotLineWidth;
+gh = opts.guiHandle;
+cOrd = opts.chebyOrder;
+eTI  = opts.eigsToInterp;
+Graph = opts.Graph;
 
 if isstruct(Graph)
-    theEigs = Graph.E;
-    diffOfEigs = theEigs(2:end)-theEigs(1:end-1);
-    indNonEqual = [1; find(logical(diffOfEigs)) + 1];
+    d = Graph.E;
+    d = d(2:end)-d(1:end-1);
+    I_ui = [1; find(logical(d)) + 1]; % indices of unidentical eigs
     
-    if strcmp(warping,'none')
-        if isempty(eigsToInterp)
-            f = Graph.E(indNonEqual);
+    if strcmp(opts.warping,'none')
+        if isempty(eTI)
+            f = Graph.E(I_ui);
             x = f;
         else 
-            f = eigsToInterp;
+            f = eTI;
             x = f;
         end
     else
-        if isempty(eigsToInterp)
-            f = Graph.E(indNonEqual);
-            x = warping(indNonEqual)*Graph.lmax;
+        if isempty(eTI)
+            f = Graph.E(I_ui);
+            x = opts.warping(I_ui)*Graph.lmax;
         else
-            if subSampleWarping
-                dummy1 = Graph.E(indNonEqual);
-                interp_x = dummy1(1:subSampleWarping:end-1);
-                interp_x(end+1) = dummy1(end);
+            if opts.subSampleWarping
+                d1 = Graph.E(I_ui);
+                interp_x = d1(1:opts.subSampleWarping:end-1);
+                interp_x(end+1) = d1(end);
                 
-                dummy2 = warping(indNonEqual)*Graph.lmax;
-                interp_y = dummy2(1:subSampleWarping:end-1);
-                interp_y(end+1) = dummy2(end);
+                d2 = opts.warping(I_ui)*Graph.lmax;
+                interp_y = d2(1:opts.subSampleWarping:end-1);
+                interp_y(end+1) = d2(end);
                 
-                f = eigsToInterp(eigsToInterp <= interp_x(end));
+                f = eTI(eTI <= interp_x(end));
                 x = abs(gsp_mono_cubic_warp_fn(interp_x,interp_y,f)); 
             else
-                f = eigsToInterp;
-                interp_x = Graph.E(indNonEqual);
-                interp_y = warping(indNonEqual)*Graph.lmax;
+                f = eTI;
+                interp_x = Graph.E(I_ui);
+                interp_y = opts.warping(I_ui)*Graph.lmax;
                 x = abs(gsp_mono_cubic_warp_fn(interp_x,interp_y,f));
             end
         end
     end
 else 
-    x=linspace(arange(1),arange(2),1e3);
+    x = linspace(arange(1),arange(2),1e3);
     f = x;
 end
 
 
-J=numel(g)-1;
-co=get(gca,'ColorOrder'); 
-co=[co;co;co];
-G=0*x;
+J = length(g)-1;
+co = get(gca,'ColorOrder'); 
+co = [co;co;co];
+G = 0*x;
 G_cheby = 0*x;
 
-if ~isempty(chebyOrder)
-    for k=1:numel(g)
-        c{k}=sgwt_cheby_coeff(g{k},chebyOrder,chebyOrder+1,arange);
+if ~isempty(cOrd)
+    c = cell(1,length(g));
+    for k = 1:length(g)
+        c{k} = sgwt_cheby_coeff(g{k},cOrd,cOrd+1,arange);
     end
 end
 
 for n=0:J
-    if isempty(guiHandle)
-        if isempty(chebyOrder)
-            plot(f,g{1+n}(x),'Color',co(1+n,:),'LineWidth',plotLineWidth);
-        elseif strcmp(onlyChebyApprox,'yes')
-            plot(f,sgwt_cheby_eval(x,c{1+n},arange),'Color',co(1+n,:),...
-                'LineWidth',plotLineWidth);
+    if isempty(gh)
+        if isempty(cOrd)
+            plot(...
+                f,...
+                g{1+n}(x),...
+                'Color',co(1+n,:),...
+                'LineWidth',lw...
+                );
+        elseif strcmp(opts.onlyChebyApprox,'yes')
+            plot(...
+                f,...
+                sgwt_cheby_eval(x,c{1+n},arange),...
+                'Color',co(1+n,:),...
+                'LineWidth',lw...
+                );
         else
-            plot(f,g{1+n}(x),'Color',co(1+n,:),'LineWidth',plotLineWidth);
-            plot(f,sgwt_cheby_eval(x,c{1+n},arange),'-.','Color',...
-                co(1+n,:),'LineWidth',plotLineWidth);
+            plot(...
+                f,...
+                g{1+n}(x),...
+                'Color',co(1+n,:),...
+                'LineWidth',lw...
+                );
+            plot(...
+                f,...
+                sgwt_cheby_eval(x,c{1+n},arange),...
+                '-.',...
+                'Color',co(1+n,:),...
+                'LineWidth',lw...
+                );
         end
     else
-        if isempty(chebyOrder)
-            plot(f,g{1+n}(x),'Color',co(1+n,:),'LineWidth',plotLineWidth,...
-                'Parent',guiHandle);
-        elseif strcmp(onlyChebyApprox,'yes')
-            plot(f,sgwt_cheby_eval(x,c{1+n},arange),'Color',co(1+n,:),...
-                'LineWidth',plotLineWidth,'Parent',guiHandle);
+        if isempty(cOrd)
+            plot(...
+                f,...
+                g{1+n}(x),...
+                'Color',co(1+n,:),...
+                'LineWidth',lw,...
+                'Parent',gh...
+                );
+        elseif strcmp(opts.onlyChebyApprox,'yes')
+            plot(...
+                f,...
+                sgwt_cheby_eval(x,c{1+n},arange),...
+                'Color',co(1+n,:),...
+                'LineWidth',lw,...
+                'Parent',gh...
+                );
         else
-            plot(f,g{1+n}(x),'Color',co(1+n,:),'LineWidth',plotLineWidth,...
-                'Parent',guiHandle);
-            plot(f,sgwt_cheby_eval(x,c{1+n},arange),'-.','Color',...
-                co(1+n,:),'LineWidth',plotLineWidth,'Parent',guiHandle);
+            plot(...
+                f,...
+                g{1+n}(x),...
+                'Color',co(1+n,:),...
+                'LineWidth',lw,...
+                'Parent',gh...
+                );
+            plot(...
+                f,...
+                sgwt_cheby_eval(x,c{1+n},arange),...
+                '-.',...
+                'Color',co(1+n,:),...
+                'LineWidth',lw,...
+                'Parent',gh...
+                );
         end
     end
     
     if n==0
-        if isempty(guiHandle)
+        if isempty(gh)
             hold on
         else
-            hold(guiHandle,'on')
+            hold(gh,'on')
         end
     end
     
-    if isempty(chebyOrder)
-        G=G+g{1+n}(x).^2;
+    if isempty(cOrd)
+        G = G+g{1+n}(x).^2;
     else
-        G=G+g{1+n}(x).^2;
-        G_cheby = G_cheby+sgwt_cheby_eval(x,c{1+n},arange).^2;
+        G = G+g{1+n}(x).^2;
+        G_cheby = G_cheby + sgwt_cheby_eval(x,c{1+n},arange).^2;
     end
 end
 
-if isempty(guiHandle)
-    if isempty(chebyOrder)
-        plot(f,G,'k:','LineWidth',plotLineWidth);
-    elseif strcmp(onlyChebyApprox,'yes')
-        plot(f,G_cheby,'k:','LineWidth',plotLineWidth);
+if isempty(gh)
+    if isempty(cOrd)
+        plot(f,G,'k:','LineWidth',lw);
+    elseif strcmp(opts.onlyChebyApprox,'yes')
+        plot(f,G_cheby,'k:','LineWidth',lw);
     else
-        plot(f,G,'k:','LineWidth',plotLineWidth);
-        plot(f,G_cheby,'k-.','LineWidth',plotLineWidth);
+        plot(f,G,'k:','LineWidth',lw);
+        plot(f,G_cheby,'k-.','LineWidth',lw);
     end
 else
-    if isempty(chebyOrder)
-        plot(f,G,'k:','LineWidth',plotLineWidth,'Parent',guiHandle);
-    elseif strcmp(onlyChebyApprox,'yes')
-        plot(f,G_cheby,'k:','LineWidth',plotLineWidth,'Parent',guiHandle);
+    if isempty(cOrd)
+        plot(f,G,'k:','LineWidth',lw,'Parent',gh);
+    elseif strcmp(opts.onlyChebyApprox,'yes')
+        plot(f,G_cheby,'k:','LineWidth',lw,'Parent',gh);
     else
-        plot(f,G,'k:','LineWidth',plotLineWidth,'Parent',guiHandle);
-        plot(f,G_cheby,'k-.','LineWidth',plotLineWidth,'Parent',guiHandle);
+        plot(f,G,'k:','LineWidth',lw,'Parent',gh);
+        plot(f,G_cheby,'k-.','LineWidth',lw,'Parent',gh);
     end
 end
 
-leglabels{1}='h';
+leglabels{1} = 'h';
 for j=1:J
-    leglabels{1+j}=sprintf('g_{%d}',j);
+    leglabels{1+j} = sprintf('g_{%d}',j);
 end
-leglabels{J+2}='G';
+leglabels{J+2} = 'G';
 
-if ~isempty(lambda)
-    y=-.5*ones(size(lambda,1),1);
-    stem(lambda,y, 'k');
-    leglabels{J+3}='Lambda';
+if ~isempty(opts.lambda)
+    y = -.5*ones(size(opts.lambda,1),1);
+    stem(opts.lambda,y, 'k');
+    leglabels{J+3} = 'Lambda';
 end
 
-switch showLegend
+switch opts.showLegend
     case 'yes'
         legend(leglabels)
-        title(['Scaling function kernel h(x), Wavelet kernels g(t_j x), Sum ' ...
-            'of Squares G, and Frame Bounds']);
+        title([...
+            'Scaling function kernel h(x), ',...
+            'Wavelet kernels g(t_j x), ',...
+            'Sum of Squares G, ',...
+            'and Frame Bounds'
+            ]);
     case 'no'
 end
 
-if isempty(guiHandle)
+if isempty(gh)
     hold off
 else
-    hold(guiHandle,'off')
+    hold(gh,'off')
 end
-
-function hline(y,varargin)
-xl=xlim;
-plot(xl,y*[1 1],varargin{:});
+end
