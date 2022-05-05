@@ -1,110 +1,108 @@
-% This function is part of the toolbox:
-%       gwSPM: Graph-based, Wavelet-based Statistical Parametric Mapping
-%       (v1.00)
-%
-% 	Author: Hamid Behjat
-% 
-%   Biomedical Signal Processing Group, 
-%   Dept. of Biomedical Engineering,
-%   Lund University, Sweden
-% 
-%   June 2016
-%
-%
-function [V,rs1_cbr,rs1_cbl,tComp] = gwspm_wrapper_synthesis_abs(trans,Qss,szChunks,option)
+function [V,rs1_cbr,rs1_cbl,tComp] = gwspm_wrapper_synthesis_abs(trans,Qss,szChunks,opts)
 
-if ~isempty(option) && isstruct(option)
-    if option.saveAtoms || option.loadAtoms
-        saveLoadAtoms = 1;
-        if ~gwspm_check_dirs(option);
+if ~isempty(opts) && isstruct(opts)
+    if opts.saveAtoms || opts.loadAtoms
+        SaveLoadAtoms = 1;
+        if ~gwspm_check_dirs(opts)
             error('Incompatible directories.')
         end
     else
-        saveLoadAtoms = 0;
+        SaveLoadAtoms = 0;
     end
 else
-    saveLoadAtoms = 0;
-    option.saveAtoms = 0;
-    option.loadAtoms = 0;
+    SaveLoadAtoms = 0;
+    opts.saveAtoms = 0;
+    opts.loadAtoms = 0;
 end
 
-% considering several Qs volumes in one go 
-sz = numel(Qss);
-tmps =  cell(sz,1);
-for j=1:numel(Qss)
-    tmps{j}=sqrt(Qss{j});
+% processing several Qs volumes in one go 
+Nq = length(Qss);
+tmps = cell(Nq,1);
+for iQ=1:Nq
+    tmps{iQ} = sqrt(Qss{iQ});
 end
 
-if ~option.loadAtoms
+if ~opts.loadAtoms
     % use parpool if available
     if gwspm_check_par([])
-        optionPar = 'parallel';
+        RunType = 'parallel';
     else
-        optionPar = 'sequential';
+        RunType = 'sequential';
     end
 end
 
-% compute separately for cerebrum and cerebellum subgraphs
+% build cerebrum and cerebellum subgraphs
 for subG = [{'cbr'}, {'cbl'}]
     
     tic
     switch subG{:}
         case 'cbr'
-            indice = trans.cbr.indices;
-            if saveLoadAtoms
-                partialPath = strcat(option.cbr_atomsDir,filesep,option.chunkTag);
+            indices = trans.cbr.indices;
+            if SaveLoadAtoms
+                partialPath = fullfile(opts.cbr_atomsDir,opts.chunkTag);
             end
-            printTag = ' Cerebrum';
+            tag = ' Cerebrum';
             
         case 'cbl'
-            indice = trans.cbl.indices;
-            if saveLoadAtoms
-                partialPath = strcat(option.cbl_atomsDir,filesep,option.chunkTag);
+            indices = trans.cbl.indices;
+            if SaveLoadAtoms
+                partialPath = fullfile(opts.cbl_atomsDir,opts.chunkTag);
             end
-            printTag = ' Cerebellum';
+            tag = ' Cerebellum';
             
     end
     
-    gSize = numel(indice);
+    iLast = length(indices)*(trans.wav_scales+1);
     
-    iLast = gSize*(trans.wav_scales+1);
-    
-    indiceT=[];
-    for i=1:trans.wav_scales+1,
-        indiceT=[indiceT;indice+(i-1)*prod(trans.wav_dim)]; %#ok<AGROW>
+    indiceT = [];
+    for i = 1:trans.wav_scales+1
+        indiceT = [
+            indiceT;
+            indices+(i-1)*prod(trans.wav_dim)
+            ]; %#ok<AGROW>
     end
     
-    fprintf(strcat('Absolute value wavelet reconstruction on c',printTag(3:end),'...\n'))
-    spm_progress_bar('Init',100,strcat('Absolute Value Wavelet Reconstruction - ',printTag),'');
-    
+    fprintf(sprintf('Absolute value wavelet reconstruction on %s..\n',tag))
+    spm_progress_bar(...
+        'Init',...
+        100,...
+        ['Absolute Value Wavelet Reconstruction - ',tag],...
+        ''...
+        );
     
     % initialize rs1 vectors
-    rs1 = cell(sz,1);
-    for j = 1:sz
-        rs1{j} = zeros(size(indice));
+    rs1 = cell(Nq,1);
+    for iQ=1:Nq
+        rs1{iQ} = zeros(size(indices));
     end
     
     N_chunks = ceil(iLast/szChunks);
-    nChunk =1;
+    nChunk = 1;
     
-    for iChunk=1:szChunks:iLast-mod(iLast,szChunks)
+    for iC = 1:szChunks:iLast-mod(iLast,szChunks)
         
-        if option.loadAtoms
-            load(strcat(partialPath,num2str(nChunk),'.mat'))
+        if opts.loadAtoms
+            load(strcat(partialPath,num2str(nChunk),'.mat')); %#ok<LOAD>
         else
-            atoms = gwspm_construct_atoms(trans,iChunk,iChunk+szChunks-1,subG{:},optionPar);
-            if option.saveAtoms
+            atoms = gwspm_construct_atoms(...
+                trans,...
+                iC,...
+                iC+szChunks-1,...
+                subG{:},...
+                RunType...
+                );
+            if opts.saveAtoms
                 save(strcat(partialPath,num2str(nChunk),'.mat'),'atoms')
             end
         end
         
-        count = 1;
-        for iter = iChunk:iChunk+szChunks-1
-            i=indiceT(iter);
-            for j = 1:sz
-                rs1{j}=rs1{j}+tmps{j}(i)*abs(atoms(:,count));
+        d = 1;
+        for iter = iC:iC+szChunks-1
+            i = indiceT(iter);
+            for iQ=1:Nq
+                rs1{iQ} = rs1{iQ}+tmps{iQ}(i)*abs(atoms(:,d));
             end
-            count = count +1;
+            d = d +1;
         end
         clc
         clear atoms
@@ -112,23 +110,29 @@ for subG = [{'cbr'}, {'cbl'}]
         spm_progress_bar('Set',100*nChunk/N_chunks);
     end
     
-    % last chunk -- probably has less than szChunk atoms
-    if option.loadAtoms
-        load(strcat(partialPath,num2str(nChunk),'.mat'))
+    % last chunk; probably has less than szChunk atoms
+    if opts.loadAtoms
+        load(strcat(partialPath,num2str(nChunk),'.mat')); %#ok<LOAD>
     else
-        atoms = gwspm_construct_atoms(trans,iLast-mod(iLast,szChunks)+1,iLast,subG{:},optionPar);
-        if option.saveAtoms
-            save(strcat(partialPath,num2str(nChunk),'.mat'),'atoms')
+        atoms = gwspm_construct_atoms(...
+            trans,...
+            iLast-mod(iLast,szChunks)+1,...
+            iLast,...
+            subG{:},...
+            RunType...
+            );
+        if opts.saveAtoms
+            save([partialPath,num2str(nChunk),'.mat'],'atoms')
         end
     end
     
-    count =1;
+    d = 1;
     for iter= iLast-mod(iLast,szChunks)+1:iLast
         i=indiceT(iter);
-        for j = 1:sz
-            rs1{j}=rs1{j}+tmps{j}(i)*abs(atoms(:,count));
+        for iQ=1:Nq
+            rs1{iQ} = rs1{iQ}+tmps{iQ}(i)*abs(atoms(:,d));
         end
-        count = count +1;
+        d = d +1;
     end
     clc
     clear atoms
@@ -144,22 +148,21 @@ for subG = [{'cbr'}, {'cbl'}]
             rs1_cbl = rs1;
             tComp.cbl = toc;
     end
-    
     clear rs1
-    
 end
 
-if ~option.loadAtoms
-    if strcmp(optionPar,'parallel')
+if ~opts.loadAtoms
+    if strcmp(RunType,'parallel')
         delete(gcp('nocreate'))
     end
 end
 
-V= cell(sz,1);
-for j=1:sz
-    V{j} = zeros(trans.wav_dim);
-    V{j}(trans.cbr.indices) = rs1_cbr{j};
-    V{j}(trans.cbl.indices) = rs1_cbl{j};
+V = cell(Nq,1);
+for iQ=1:Nq
+    V{iQ} = zeros(trans.wav_dim);
+    V{iQ}(trans.cbr.indices) = rs1_cbr{iQ};
+    V{iQ}(trans.cbl.indices) = rs1_cbl{iQ};
+end
 end
 
 
