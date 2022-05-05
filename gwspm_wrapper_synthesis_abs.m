@@ -57,7 +57,7 @@ for subG = [{'cbr'}, {'cbl'}]
     indiceT = [];
     for i = 1:trans.wav_scales+1
         indiceT = [
-            indiceT;
+            indiceT
             indices+(i-1)*prod(trans.wav_dim)
             ]; %#ok<AGROW>
     end

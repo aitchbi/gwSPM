@@ -1,73 +1,66 @@
-% This function is part of the toolbox:
-%       gwSPM: Graph-based, Wavelet-based Statistical Parametric Mapping
-%       (v1.00)
-%
-% 	Author: Hamid Behjat
-% 
-%   Biomedical Signal Processing Group, 
-%   Dept. of Biomedical Engineering,
-%   Lund University, Sweden
-% 
-%   June 2016
-%
-function [atoms,tComp,option] = gwspm_construct_atoms(trans,iFirst,iLast,subG,option)
+function [atoms,tComp,RunType] = gwspm_construct_atoms(trans,iFirst,iLast,subG,RunType)
 
-if isempty(option)
+if isempty(RunType)
     if gwspm_check_par([])
-        option = 'parallel';
-        switchPoolOff = 1;
+        RunType = 'parallel';
+        SwitchPoolOff = 1;
     else
-        option = 'sequential';
-        switchPoolOff =0;
+        RunType = 'sequential';
+        SwitchPoolOff = 0;
     end
 else
-    switchPoolOff =0;
+    SwitchPoolOff = 0;
 end
 
-wav_dim=trans.wav_dim;
-wav_scales=trans.wav_scales;
-sizeVol=prod(wav_dim);
+wav_dim = trans.wav_dim;
+wav_scales = trans.wav_scales;
+Nv = prod(wav_dim);
 
 switch subG
     case 'cbr'
-        indice = trans.cbr.indices;
+        indices = trans.cbr.indices;
         L = trans.cbr.L;
         c = trans.cbr.c;
         arange = trans.cbr.arange;
     case 'cbl'
-        indice = trans.cbl.indices;
+        indices = trans.cbl.indices;
         L = trans.cbl.L;
         c = trans.cbl.c;
         arange = trans.cbl.arange;
 end
-gSize = numel(indice);
+Ng = length(indices);
 
 if isempty(iFirst)
     iFirst = 1;
 end
+
 if isempty(iLast)
-    iLast = gSize*(wav_scales+1);
+    iLast = Ng*(wav_scales+1);
 end
 
 indiceT=[];
-for i=1:wav_scales+1,
-    indiceT=[indiceT;indice+(i-1)*sizeVol]; %#ok<AGROW>
+for i = 1:wav_scales+1
+    indiceT = [
+        indiceT
+        indices+(i-1)*Nv
+        ]; %#ok<AGROW>
 end
 
 szChunk = iLast-iFirst+1;
-atoms = zeros(numel(indice),szChunk);
 
-switch option
+atoms = zeros(Ng,szChunk);
+
+switch RunType
     case 'sequential'
         
         tic
         for index = 1:szChunk
             iter = (iFirst-1)+index;
-            f = zeros(numel(indice), wav_scales+1);
-            dummy1=ceil(iter/gSize);
-            dummy2 = iter-(dummy1-1)*gSize;
-            f(dummy2,dummy1)=1;
-            atoms(:,index)=sgwt_inverse(f,L,c,arange);
+            f = zeros(Ng, wav_scales+1);
+            d1 = ceil(iter/Ng);
+            d2 = iter-(d1-1)*Ng;
+            f(d2,d1) = 1;
+            atoms(:,index) = sgwt_inverse(f,L,c,arange);
         end
         
     case 'parallel'
@@ -75,17 +68,17 @@ switch option
         tic
         parfor index = 1:szChunk
             iter = (iFirst-1)+index;
-            f = zeros(numel(indice), wav_scales+1);
-            dummy1=ceil(iter/gSize);
-            dummy2 = iter-(dummy1-1)*gSize;
-            f(dummy2,dummy1)=1;
-            atoms(:,index)=sgwt_inverse(f,L,c,arange);
+            f = zeros(Ng,wav_scales+1);
+            d1 = ceil(iter/Ng);
+            d2 = iter-(d1-1)*Ng;
+            f(d2,d1) = 1;
+            atoms(:,index) = sgwt_inverse(f,L,c,arange);
         end
 end
 
 tComp.total = toc;
-tComp.single = tComp.total /numel(iFirst:iLast);
+tComp.single = tComp.total /length(iFirst:iLast);
 
-if switchPoolOff
+if SwitchPoolOff
     delete(gcp('nocreate'))
 end
