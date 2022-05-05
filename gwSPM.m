@@ -86,7 +86,7 @@ if strcmp(action,'templateDesign')
     end
 
     [Im,sts] = spm_select(N_subjects,'image',sprintf('select the structural (T1) scans of the  %d subjetcs',N_subjects));
-    if sts==0,
+    if sts==0
         message = sprintf('There was an error loading your files.\n\n');
         uiwait(msgbox(message, 'Error','error'));
         return

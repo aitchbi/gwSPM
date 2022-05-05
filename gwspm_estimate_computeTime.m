@@ -1,16 +1,4 @@
-% This function is part of the toolbox:
-%       gwSPM: Graph-based, Wavelet-based Statistical Parametric Mapping
-%       (v1.00)
-%
-% 	Author: Hamid Behjat
-% 
-%   Biomedical Signal Processing Group, 
-%   Dept. of Biomedical Engineering,
-%   Lund University, Sweden
-% 
-%   June 2016
-%
-function [tMx,tMn,option] = gwspm_estimate_computeTime(trans,n1,n2,option)
+function [tMx,tMn,opts] = gwspm_estimate_computeTime(trans,n1,n2,opts)
 
 if isempty(n1)
     n1 = 60;
@@ -20,19 +8,19 @@ if isempty(n2)
     n2 =100; 
 end
 
-if isempty(option)
+if isempty(opts)
     if gwspm_check_par([])
-        option = 'parallel';
+        opts = 'parallel';
     else
-        option = 'sequential';
+        opts = 'sequential';
     end
-    switchOff = 1;
+    SwitchOff = 1;
 else
-    switchOff = 0;
+    SwitchOff = 0;
 end
 
-[~, t1] = gwspm_construct_atoms(trans,1,n1,'cbr',option);
-[~, t2] = gwspm_construct_atoms(trans,1,n2,'cbl',option);
+[~,t1] = gwspm_construct_atoms(trans,1,n1,'cbr',opts);
+[~,t2] = gwspm_construct_atoms(trans,1,n2,'cbl',opts);
 
 t = (1+trans.wav_scales)*...
     (t1.single*numel(trans.cbr.indices)+...
@@ -40,6 +28,6 @@ t = (1+trans.wav_scales)*...
 tMx = t/3600;
 tMn = 0.9*t/3600; 
 
-if strcmp(option,'parallel') && switchOff
+if strcmp(opts,'parallel') && SwitchOff
     delete(gcp('nocreate'))
 end

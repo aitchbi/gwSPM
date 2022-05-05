@@ -1,15 +1,3 @@
-% This function is part of the toolbox:
-%       gwSPM: Graph-based, Wavelet-based Statistical Parametric Mapping
-%       (v1.00)
-%
-% 	Author: Hamid Behjat
-% 
-%   Biomedical Signal Processing Group, 
-%   Dept. of Biomedical Engineering,
-%   Lund University, Sweden
-% 
-%   June 2015
-%
 function varargout = gwspm_extract(varargin)
 
 % Begin initialization code - DO NOT EDIT

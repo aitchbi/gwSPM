@@ -1,25 +1,17 @@
-% This function is part of the toolbox:
-%       gwSPM: Graph-based, Wavelet-based Statistical Parametric Mapping
-%       (v1.00)
-%
-% 	Author: Hamid Behjat
-% 
-%   Biomedical Signal Processing Group, 
-%   Dept. of Biomedical Engineering,
-%   Lund University, Sweden
-% 
-%   June 2016
-%
-function A=gwspm_compute_adjacency(mask,conn,varargin)
-% The initial version of this function was developed by
-% Elena Najdenovska and Nora Leonardi, 2011
+function A = gwspm_compute_adjacency(mask,conn,varargin)
+% Initial version of code by Elena Najdenovska & Nora Leonardi, 2011.
 
-[w,pow,s,dist,sw,indGM]=process_options(varargin,'Weight',...
-    'no','pow',[],'S',[],'Dist','Eucl','SW',1,...
-    'indGM',[]);
+[w,pow,s,dist,sw]=process_options(...
+    varargin,...
+    'Weight','no',...
+    'pow',[],...
+    'S',[],...
+    'Dist','Eucl',...
+    'SW',1,...
+    );
 
-dim=size(mask);
-N=numel(mask);
+dim = size(mask);
+N = numel(mask);
 
 %the indices of the non-zero mask elements
 indices=find(mask);
@@ -37,7 +29,8 @@ switch conn
     otherwise
         error('undefined 3D connectivity neighbourhood..!')
 end
-%the coordinates of the center points
+
+% coordinates of the center points
 ci=repmat(alli,nN,1);
 cj=repmat(allj,nN,1);
 ck=repmat(allk,nN,1);
@@ -141,7 +134,6 @@ c=c(~ismember(c,indices));
 
 A(:,c)=[];
 A(c,:)=[];
-
 end
 
 
