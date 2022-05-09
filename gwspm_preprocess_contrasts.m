@@ -1,49 +1,31 @@
-% This function is part of the toolbox:
-%       gwSPM: Graph-based, Wavelet-based Statistical Parametric Mapping
-%       (v1.00)
-%
-% 	Author: Hamid Behjat
-% 
-%   Biomedical Signal Processing Group, 
-%   Dept. of Biomedical Engineering,
-%   Lund University, Sweden
-% 
-%   June 2016
-%
-function  gwspm_preprocess_contrasts(N_subjects,images,contrasts,meanVols,options)
+function  gwspm_preprocess_contrasts(Nsubj,images,contrasts,meanVols,opts)
 
-%-Preliminaries 
-%--------------------------------------------------------------------------
-
-% Make gwspm directory for contrasts
-clear job
-for iS =1:N_subjects
-    dummy = contrasts{iS}(1);
-    pathstr = fileparts(dummy{:});
-
-    job.parent = {pathstr};
-    job.name = options.contrastDirName ;
+%-Preliminaries------------------------------------------------------------ 
+% make gwspm directory for contrasts
+for iS =1:Nsubj
+    d = contrasts{iS}(1);
+    job.parent = {fileparts(d{:})};
+    job.name = opts.contrastDirName ;
     cfg_run_mkdir(job);
 end
 
-% File names of 'coregistered' & 'normalised' contrasts
+% file names of 'coregistered' & 'normalised' contrasts
 c_contrasts = cell(size(contrasts));
 w_contrasts = cell(size(contrasts));
-for iS =1:N_subjects
-    temp1 = cell(size(contrasts{iS}));
-    temp2 = cell(size(contrasts{iS}));
-    for i=1:size(contrasts{iS},1)
-        [pathstr,name,ext] = fileparts(contrasts{iS}{i});
-        temp1(i) = {strcat(pathstr,filesep,'c_',name,ext)};
-        temp2(i) = {strcat(pathstr,filesep,'wc_',name,ext)};
+for iS =1:Nsubj
+    d1 = cell(size(contrasts{iS}));
+    d2 = cell(size(contrasts{iS}));
+    for iC=1:size(contrasts{iS},1)
+        [p,n,e] = fileparts(contrasts{iS}{iC});
+        d1(iC) = {fullfile(p,['c_',n,e])};
+        d2(iC) = {fullfile(p,['wc_',n,e])};
     end
-    c_contrasts(iS) = {temp1};
-    w_contrasts(iS) = {temp2};
+    c_contrasts(iS) = {d1};
+    w_contrasts(iS) = {d2};
 end
 
-
-%-Coregister contrasts with strutural data (using the mean functional volume)
-%--------------------------------------------------------------------------
+%-Coregister---------------------------------------------------------------
+% coreg contrasts with strutural data (using the mean functional volume)
 % Even if the input data have been coregistered, its good to make sure. 
 % Also a change of naming is required. 
 
@@ -58,48 +40,46 @@ job.roptions.wrap = [0 0 0];
 job.roptions.mask = 0;
 job.roptions.prefix = 'c_';
 
-for iS =1:N_subjects
+for iS =1:Nsubj
     job.ref = images(iS);
     job.source = meanVols(iS);
     job.other = contrasts{iS};
     spm_run_coreg(job);
 end
 
-
-%-DARTEL Normalise to MNI Space
-%--------------------------------------------------------------------------
+%-DARTEL Normalise to MNI Space--------------------------------------------
 clear job
-job.template =  {strcat(options.templateDirRoot,...
-    filesep,options.templateDirName,filesep,...
-    'Template_6.nii')};
+job.template = {...
+    fullfile(...
+    opts.templateDirRoot,...
+    opts.templateDirName,...
+    'Template_6.nii')...
+    };
 
-for iS=1:N_subjects
-    [pathstr,name,ext] = fileparts(images{iS});
-    
-    job.data.subj(iS).flowfield = {strcat(pathstr,...
-        filesep,'u_rc1',name,'_Template',ext)};
-    
-    job.data.subj(iS).images = c_contrasts{iS}; 
+for iS=1:Nsubj
+    [p,n,e] = fileparts(images{iS});
+    job.data.subj(iS).flowfield = {...
+        fullfile(p,'u_rc1',[n,'_Template',e])...
+        };
+    job.data.subj(iS).images = c_contrasts{iS};
 end
 
-job.bb = [-78 -112 -70; 78 76 85];
 job.preserve = 0;
-job.fwhm = [0 0 0];
+job.fwhm     = [0 0 0];
+job.bb       = [-78 -112 -70; 78 76 85];
 
-for voxDim = [2, 2.5, 3]
-    job.vox = [voxDim, voxDim, voxDim];
-    
+for voxdim = [2, 2.5, 3]
+    job.vox = [voxdim,voxdim,voxdim];
     spm_dartel_norm_fun(job); 
-    
-    for iS=1:N_subjects
-       
+    for iS=1:Nsubj
         clear job2
         job2.files = w_contrasts{iS};
-        pathstr = fileparts(contrasts{iS}{1});
-        job2.action.moveren.moveto = {strcat(...
-            pathstr,filesep,options.contrastDirName)};
+        d = fileparts(contrasts{iS}{1});
+        job2.action.moveren.moveto = {...
+            fullfile(d,opts.contrastDirName)...
+            };
         job2.action.moveren.patrep.pattern = 'w';
-        switch voxDim
+        switch voxdim
             case 2
                 job2.action.moveren.patrep.repl = 'w2';
             case 2.5
@@ -108,11 +88,8 @@ for voxDim = [2, 2.5, 3]
                 job2.action.moveren.patrep.repl = 'w3';
         end
         job2.action.moveren.unique = false;
-        
         cfg_run_file_move(job2);
-        
     end
-    
 end
 
 
